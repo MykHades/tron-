@@ -262,7 +262,109 @@ function shapeEl(i, cx, cy, r, fill, stroke, sw){
   return `<polygon points="${cx},${cy-r-1} ${cx+r},${cy} ${cx},${cy+r+1} ${cx-r},${cy}" fill="${fill}"${st}/>`;
 }
 function badge(i){
-  return `<svg width="17" height="17" viewBox="0 0 34 34" style="vertical-align:-3px">${shapeEl(i,17,17,12,PLAYER_COLORS[i\%4],'','')}</svg>`; }  function newGame(n, names){ const sides = n === 2 ? [0,2] : (n === 3 ? [0,2,1] : [0,2,1,3]); const monsterDeck = shuffle([...MONSTERS_POOL]);  // 4 смуги по 6 кроків const gridMonsters = []; for(let s=0; s<4; s++){ gridMonsters[s] = []; for(let step=0; step<CFG.STEPS; step++){ gridMonsters[s][step] = monsterDeck.pop() || pick(MONSTERS_POOL); } }  // Колода Трону залежить від кількості гравців const throneCardCount = n === 4 ? 10 : (n === 3 ? 7 : 5); const throneDeck = shuffle([...THRONE_CARDS]).slice(0, throneCardCount);  S = { players: Array.from({length:n}, (_,i)=>({ id:i, name:((names && names[i]) ? names[i] : 'Гравець '+(i+1)), side:sides[i], step:0, slots:{ weapon:{slot:'weapon',name:'Іржавий ніж',p:0}, armor:null }, relics:[], pocket:[], pack:[], temp:0, debuffNext:0, skip:false, isBoss:false, moved:false, presenceUsed:false })), turn:0, phase:'idle', monsters: gridMonsters, throneDeck: throneDeck, throneTokens: 0, boss:{ playerId:null }, bossRounds: CFG.BOSS_ROUNDS, sleepRounds: CFG.SLEEP_ROUNDS, pend:null, result:null, loot:null, castBy:[], log:[], over:false, winner:null };  S.players.forEach(p => { p.pocket.push(makeSpell('Зілля сили')); }); log('Гра розпочалася! Трон порожній і спить.', 'gold'); render(); }  function makeSpell(name){ const d = SPELLS.find(x => x.n === name) || pick(SPELLS); return { kind:'spell', ...d }; }  function cur(){ return S.players[S.turn]; } function bossPlayer(){ return S.boss.playerId === null ? null : S.players[S.boss.playerId]; } function bossExists(){ return S.boss.playerId !== null; } function currentThroneDC(){ return Math.min(CFG.THRONE_DC_MAX, CFG.THRONE_DC_BASE + S.throneTokens); }  function gearBonus(p, ctx){ let w = p.slots.weapon ? (p.slots.weapon.p + (ctx === 'sneak' && p.slots.weapon.vp ? p.slots.weapon.vp : 0)) : 0; let a = p.slots.armor ? (p.slots.armor.p + (ctx === 'sneak' && p.slots.armor.vp ? p.slots.armor.vp : 0)) : 0;  // Регалія Сходу (Булава) на 6 сходинці блокує більший бонус if(p.step === 5 && p.side === 3){ if(w >= a) w = 0; else a = 0; } return w + a; }  function playerBonus(p, ctx){ let b = p.step + 1 + gearBonus(p, ctx) + p.temp - p.debuffNext; if(p.relics.some(r => r.n === 'Око провидця')) b += 1; return b; }  function monsterHere(p){ return (p.step >= 0 && p.step < CFG.STEPS) ? S.monsters[p.side][p.step] : null; }  function sameSquare(a,b){ return !a.isBoss && !b.isBoss && a.side === b.side && a.step === b.step; }  function log(msg, cls){ S.log.unshift({ msg, cls: cls || '' }); if(S.log.length > 140) S.log.pop(); }  /* ============================================================ СКАРБ ТА ЛУТ ============================================================ */ function drawLoot(step, count){ const tier = CFG.TIER[Math.min(step, CFG.STEPS-1)]; const out = []; for(let i=0; i<count; i++){ const r = Math.random(); if(r < 0.25){ out.push(makeSpell()); } else if(r < 0.40){ out.push({ kind:'relic', ...pick(RELICS_DB) }); } else { const slot = Math.random() < 0.5 ? 'weapon' : 'armor'; const [name, power, vs, vp] = pick(ITEMS_DB[tier][slot]); out.push({ kind:'item', slot, name, p:power, vs, vp }); } } return out; }  function grantLoot(step, count){ S.loot = drawLoot(step, count); }  function applyCard(p, card, mode){ if(card.kind === 'spell'){ if(p.pocket.length < CFG.POCKETS){ p.pocket.push(card); log(`${p.name} бере «${card.n}» у кишеню.`, 'magic'); } else if(p.pack.length < CFG.PACK){ p.pack.push(card); log(`${p.name} кладе «${card.n}» у рюкзак.`); } else log(`${p.name}: рюкзак повний — «${card.n}» скинуто.`, 'bad'); return; } if(card.kind === 'relic'){ p.relics.push(card); log(`${p.name} отримує реліквію «${card.n}».`, 'gold'); return; } if(mode === 'pack'){ if(p.pack.length < CFG.PACK){ p.pack.push(card); log(`${p.name} кладе «${card.name}» у рюкзак.`); } else log(`${p.name}: рюкзак повний — «${card.name}» скинуто.`, 'bad'); return; } const old = p.slots[card.slot]; p.slots[card.slot] = card; if(old && old.p > 0){ if(p.pack.length < CFG.PACK){ p.pack.push(old); log(`${p.name}: «${old.name}» → у рюкзак.`); } else log(`${p.name} викидає «${old.name}».`); } log(`${p.name} надягає «${card.name}» (+${card.p}).`, 'good');
+  return `<svg width="17" height="17" viewBox="0 0 34 34" style="vertical-align:-3px">${shapeEl(i,17,17,12,PLAYER_COLORS[i % 4],'','')}</svg>`;
+}
+
+function newGame(n, names){
+  const sides = n === 2 ? [0,2] : (n === 3 ? [0,2,1] : [0,2,1,3]);
+  const monsterDeck = shuffle([...MONSTERS_POOL]);
+  const gridMonsters = [];
+  for(let s=0; s<4; s++){
+    gridMonsters[s] = [];
+    for(let step=0; step<CFG.STEPS; step++){
+      gridMonsters[s][step] = monsterDeck.pop() || pick(MONSTERS_POOL);
+    }
+  }
+
+  const throneCardCount = n === 4 ? 10 : (n === 3 ? 7 : 5);
+  const throneDeck = shuffle([...THRONE_CARDS]).slice(0, throneCardCount);
+
+  S = {
+    players: Array.from({length:n}, (_,i)=>({
+      id:i, name:((names && names[i]) ? names[i] : 'Гравець '+(i+1)), side:sides[i], step:0,
+      slots:{ weapon:{slot:'weapon',name:'Іржавий ніж',p:0}, armor:null },
+      relics:[], pocket:[], pack:[], temp:0, debuffNext:0, skip:false, isBoss:false, moved:false, presenceUsed:false
+    })),
+    turn:0, phase:'idle', monsters: gridMonsters, throneDeck: throneDeck, throneTokens: 0,
+    boss:{ playerId:null }, bossRounds: CFG.BOSS_ROUNDS, sleepRounds: CFG.SLEEP_ROUNDS,
+    pend:null, result:null, loot:null, castBy:[], log:[], over:false, winner:null
+  };
+
+  S.players.forEach(p => { p.pocket.push(makeSpell('Зілля сили')); });
+  log('Гра розпочалася! Трон порожній і спить.', 'gold');
+  render();
+}
+
+function makeSpell(name){
+  const d = SPELLS.find(x => x.n === name) || pick(SPELLS);
+  return { kind:'spell', ...d };
+}
+
+function cur(){ return S.players[S.turn]; }
+function bossPlayer(){ return S.boss.playerId === null ? null : S.players[S.boss.playerId]; }
+function bossExists(){ return S.boss.playerId !== null; }
+function currentThroneDC(){ return Math.min(CFG.THRONE_DC_MAX, CFG.THRONE_DC_BASE + S.throneTokens); }
+
+function gearBonus(p, ctx){
+  let w = p.slots.weapon ? (p.slots.weapon.p + (ctx === 'sneak' && p.slots.weapon.vp ? p.slots.weapon.vp : 0)) : 0;
+  let a = p.slots.armor ? (p.slots.armor.p + (ctx === 'sneak' && p.slots.armor.vp ? p.slots.armor.vp : 0)) : 0;
+  if(p.step === 5 && p.side === 3){
+    if(w >= a) w = 0; else a = 0;
+  }
+  return w + a;
+}
+
+function playerBonus(p, ctx){
+  let b = p.step + 1 + gearBonus(p, ctx) + p.temp - p.debuffNext;
+  if(p.relics.some(r => r.n === 'Око провидця')) b += 1;
+  return b;
+}
+
+function monsterHere(p){ return (p.step >= 0 && p.step < CFG.STEPS) ? S.monsters[p.side][p.step] : null; }
+function sameSquare(a,b){ return !a.isBoss && !b.isBoss && a.side === b.side && a.step === b.step; }
+function log(msg, cls){ S.log.unshift({ msg, cls: cls || '' }); if(S.log.length > 140) S.log.pop(); }
+
+/* ============================================================
+   СКАРБ ТА ЛУТ
+   ============================================================ */
+function drawLoot(step, count){
+  const tier = CFG.TIER[Math.min(step, CFG.STEPS-1)];
+  const out = [];
+  for(let i=0; i<count; i++){
+    const r = Math.random();
+    if(r < 0.25){ out.push(makeSpell()); }
+    else if(r < 0.40){ out.push({ kind:'relic', ...pick(RELICS_DB) }); }
+    else {
+      const slot = Math.random() < 0.5 ? 'weapon' : 'armor';
+      const [name, power, vs, vp] = pick(ITEMS_DB[tier][slot]);
+      out.push({ kind:'item', slot, name, p:power, vs, vp });
+    }
+  }
+  return out;
+}
+
+function grantLoot(step, count){ S.loot = drawLoot(step, count); }
+
+function applyCard(p, card, mode){
+  if(card.kind === 'spell'){
+    if(p.pocket.length < CFG.POCKETS){ p.pocket.push(card); log(`${p.name} бере «${card.n}» у кишеню.`, 'magic'); }
+    else if(p.pack.length < CFG.PACK){ p.pack.push(card); log(`${p.name} кладе «${card.n}» у рюкзак.`); }
+    else log(`${p.name}: рюкзак повний — «${card.n}» скинуто.`, 'bad');
+    return;
+  }
+  if(card.kind === 'relic'){ p.relics.push(card); log(`${p.name} отримує реліквію «${card.n}».`, 'gold'); return; }
+  if(mode === 'pack'){
+    if(p.pack.length < CFG.PACK){ p.pack.push(card); log(`${p.name} кладе «${card.name}» у рюкзак.`); }
+    else log(`${p.name}: рюкзак повний — «${card.name}» скинуто.`, 'bad');
+    return;
+  }
+  const old = p.slots[card.slot];
+  p.slots[card.slot] = card;
+  if(old && old.p > 0){
+    if(p.pack.length < CFG.PACK){ p.pack.push(old); log(`${p.name}: «${old.name}» → у рюкзак.`); }
+    else log(`${p.name} викидає «${old.name}».`);
+  }
+  log(`${p.name} надягає «${card.name}» (+${card.p}).`, 'good');
 }
 
 function loseItem(p){
@@ -280,7 +382,6 @@ function loseItem(p){
    ============================================================ */
 const ACT = {
   start(n){ renderSetup(n); },
-
   begin(n){
     const names = [];
     document.querySelectorAll('.namein').forEach(el => {
@@ -289,120 +390,91 @@ const ACT = {
     });
     newGame(n, names);
   },
-
   move(dir){
     if(S.phase !== 'idle') return;
     const p = cur();
     const m = monsterHere(p);
-    if(m && m.abi === 'web'){
-      log('Павук Тіней блокує зміну смуги!', 'bad');
-      return;
-    }
-    if(p.moved && !p.relics.some(r => r.n === 'Чобітки вітру')){
-      log('Ви вже змінювали смугу цього ходу.', 'bad');
-      return;
-    }
+    if(m && m.abi === 'web'){ log('Павук Тіней блокує зміну смуги!', 'bad'); return; }
+    if(p.moved && !p.relics.some(r => r.n === 'Чобітки вітру')){ log('Ви вже змінювали смугу цього ходу.', 'bad'); return; }
     p.side = (p.side + dir + 4) % 4;
     p.moved = true;
     log(`${p.name} переходить на смугу ${SIDE_NAMES[p.side]}.`);
     render();
   },
-
   choose(act, arg){
     if(S.phase !== 'idle') return;
     const p = cur();
-
     if(act === 'pvp'){
       const target = S.players[arg];
       if(!sameSquare(p, target)) return;
       resolvePvp(p, target);
       return;
     }
-
     if(act === 'throne'){
       if(p.step !== CFG.STEPS - 1) return;
       beginEnc(p, { act:'throne', dc: currentThroneDC() });
-      log(`${p.name} іде на штурм трону!`, 'gold'); return; }  const m = monsterHere(p); let dc = CFG.DC[p.step];  if(act === 'sneak'){ if(m && (m.abi === 'fast' || m.abi === 'slow')){ log(`${m.n} не дозволяє скрадатися!`, 'bad');
-        return;
-      }
-      dc -= 4;
-    } else if(act === 'search'){
-      dc -= 2;
+      log(`${p.name} іде на штурм трону!`, 'gold');
+      return;
     }
-
+    const m = monsterHere(p);
+    let dc = CFG.DC[p.step];
+    if(act === 'sneak'){
+      if(m && (m.abi === 'fast' || m.abi === 'slow')){ log(`${m.n} не дозволяє скрадатися!`, 'bad'); return; }
+      dc -= 4;
+    } else if(act === 'search'){ dc -= 2; }
     if(m && m.abi === 'mimic') dc += 2;
     if(m && m.abi === 'pack'){
       const neighbors = S.players.filter(q => sameSquare(p, q) && q.id !== p.id).length;
       dc += neighbors;
     }
-
     beginEnc(p, { act, dc });
   },
-
   presence(pid, sign){
     if(S.phase !== 'enc') return;
     const roller = cur();
     const mate = S.players[pid];
     if(!mate || mate.id === roller.id || !sameSquare(mate, roller) || mate.presenceUsed) return;
-    
     mate.presenceUsed = true;
-    if(sign > 0){ S.pend.help += 2; log(`${mate.name} допомагає: +2.`, 'good'); } else { S.pend.harm += 2; log(`${mate.name} заважає: −2.`, 'bad'); }
+    if(sign > 0){ S.pend.help += 2; log(`${mate.name} допомагає: +2.`, 'good'); }
+    else { S.pend.harm += 2; log(`${mate.name} заважає: −2.`, 'bad'); }
     render();
   },
-
   cast(pid, idx){
     if(S.phase !== 'enc' && S.phase !== 'idle') return;
     const caster = S.players[pid];
-    
-    // Регалія Півдня на 6-й сходинці забороняє магію
-    if(caster.step === 5 && caster.side === 0){
-      log('Печатка на 6-й сходинці блокує магію!', 'bad');
-      return;
-    }
-
+    if(caster.step === 5 && caster.side === 0){ log('Печатка на 6-й сходинці блокує магію!', 'bad'); return; }
     if(S.castBy.includes(pid)) return;
     const sp = caster.pocket[idx];
     if(!sp) return;
     const roller = cur();
-
     caster.pocket.splice(idx,1);
     S.castBy.push(pid);
     playSpell(caster, sp, roller);
     render();
   },
-
   roll(){
     if(S.phase !== 'enc') return;
     const p = cur(), pd = S.pend;
     let r1 = d20(), r2 = d20();
-
-    // Регалія Півночі (Держава) — гірший з 2 кидків
     let r = (p.step === 5 && p.side === 2) ? Math.min(r1, r2) : r1;
-
     const b = playerBonus(p, pd.act);
     const total = b + r + pd.help - pd.harm;
-
     let ok, tag = '';
     if(pd.auto){ ok = true; tag = ' · Свиток'; }
     else if(r === 20){ ok = true; tag = ' · КРИТ'; }
     else if(r === 1){
-      if(p.relics.some(rel => rel.n === 'Щит долі')){
-        ok = false; tag = ' · Щит долі врятував від критичної втрати!';
-      } else { ok = false; tag = ' · ПРОВАЛ'; }
+      if(p.relics.some(rel => rel.n === 'Щит долі')){ ok = false; tag = ' · Щит долі врятував від критичної втрати!'; }
+      else { ok = false; tag = ' · ПРОВАЛ'; }
     }
     else ok = total >= pd.dc;
-
     const lines = [
       `<span class="die ${r===20?'crit':''}${r===1?'fail':''}">${r}</span>&nbsp; ` + `Бонус (${b}) + Кидок (${r})` + (pd.help?` +${pd.help}`:'') + (pd.harm?` −${pd.harm}`:'') + ` = <b>${total}</b> проти DC <b>${pd.dc}</b>${tag}`
     ];
-
     applyOutcome(p, pd, ok, r, lines);
-
     p.temp = 0; p.debuffNext = 0;
     S.phase = S.loot ? 'loot' : 'result';
     render();
   },
-
   takeLoot(idx, mode){
     if(S.phase !== 'loot') return;
     const p = cur();
@@ -414,10 +486,55 @@ const ACT = {
     S.phase = 'result';
     render();
   },
-
   skipLoot(){
     if(S.phase !== 'loot') return;
-    log(`${cur().name} відмовляється від скарбу.`); S.loot = null; S.phase = 'result'; render(); },  cont(){ if(S.phase !== 'result' && S.phase !== 'loot') return; S.result = null; S.loot = null; S.pend = null; nextTurn(); },  playBossCard(){ if(S.phase !== 'boss') return; if(!S.throneDeck.length){ log('Колода Трону порожня! Бос протримався без карт трону 1 коло і перемагає!', 'gold'); S.over = true; S.winner = bossPlayer(); render(); return; } const card = S.throneDeck.pop(); log(`Бос відкриває карту трону: «${card.n}» (${card.t}).`, 'gold');  const foes = S.players.filter(x => !x.isBoss); if(card.e === 'guard') S.throneTokens = Math.min(6, S.throneTokens + 2); else if(card.e === 'fear') S.throneTokens = Math.min(6, S.throneTokens + 3); else if(card.e === 'curse' && foes.length){ pick(foes).debuffNext += 3; } else if(card.e === 'wall' && foes.length){ pick(foes).skip = true; } else if(card.e === 'tax'){ foes.forEach(f => { if(f.pocket.length) f.pocket.pop(); }); } else if(card.e === 'swap' && foes.length){ const b = bossPlayer(); const f = pick(foes); const st = b.step; b.step = f.step; f.step = st; log(`Зрада крові: ${b.name} та ${f.name} міняються місцями!`, 'bad'); }  endBossTurn(); },  playAgain(){ S = null; renderSplash(); } };  /* ============================================================ МАГІЯ ТА ПРОЦЕСИ ============================================================ */ function playSpell(caster, sp, roller){ log(`${caster.name} використовує «${sp.n}».`, 'magic'); if(sp.e === 'bonus' && S.pend){ S.pend.help += sp.v; } else if(sp.e === 'penalty' && S.pend){ S.pend.harm += Math.abs(sp.v); } else if(sp.e === 'pass' && S.pend){ S.pend.auto = true; } else if(sp.e === 'steal'){ if(roller.pack.length){ const it = roller.pack.splice(rnd(roller.pack.length),1)[0]; if(caster.pack.length < CFG.PACK) caster.pack.push(it); log(`«${it.name}» вкрадено у ${roller.name}.`, 'bad'); } else log('У цілі порожній рюкзак.', 'bad'); } else if(sp.e === 'skip'){ roller.skip = true; log(`${roller.name} пропускає хід.`, 'bad'); }
+    log(`${cur().name} відмовляється від скарбу.`);
+    S.loot = null;
+    S.phase = 'result';
+    render();
+  },
+  cont(){
+    if(S.phase !== 'result' && S.phase !== 'loot') return;
+    S.result = null; S.loot = null; S.pend = null;
+    nextTurn();
+  },
+  playBossCard(){
+    if(S.phase !== 'boss') return;
+    if(!S.throneDeck.length){
+      log('Колода Трону порожня! Бос протримався без карт трону 1 коло і перемагає!', 'gold');
+      S.over = true; S.winner = bossPlayer(); render(); return;
+    }
+    const card = S.throneDeck.pop();
+    log(`Бос відкриває карту трону: «${card.n}» (${card.t}).`, 'gold');
+    const foes = S.players.filter(x => !x.isBoss);
+    if(card.e === 'guard') S.throneTokens = Math.min(6, S.throneTokens + 2);
+    else if(card.e === 'fear') S.throneTokens = Math.min(6, S.throneTokens + 3);
+    else if(card.e === 'curse' && foes.length){ pick(foes).debuffNext += 3; }
+    else if(card.e === 'wall' && foes.length){ pick(foes).skip = true; }
+    else if(card.e === 'tax'){ foes.forEach(f => { if(f.pocket.length) f.pocket.pop(); }); }
+    else if(card.e === 'swap' && foes.length){
+      const b = bossPlayer(); const f = pick(foes);
+      const st = b.step; b.step = f.step; f.step = st;
+      log(`Зрада крові: ${b.name} та ${f.name} міняються місцями!`, 'bad');
+    }
+    endBossTurn();
+  },
+  playAgain(){ S = null; renderSplash(); }
+};
+
+function playSpell(caster, sp, roller){
+  log(`${caster.name} використовує «${sp.n}».`, 'magic');
+  if(sp.e === 'bonus' && S.pend){ S.pend.help += sp.v; }
+  else if(sp.e === 'penalty' && S.pend){ S.pend.harm += Math.abs(sp.v); }
+  else if(sp.e === 'pass' && S.pend){ S.pend.auto = true; }
+  else if(sp.e === 'steal'){
+    if(roller.pack.length){
+      const it = roller.pack.splice(rnd(roller.pack.length),1)[0];
+      if(caster.pack.length < CFG.PACK) caster.pack.push(it);
+      log(`«${it.name}» вкрадено у ${roller.name}.`, 'bad');
+    } else log('У цілі порожній рюкзак.', 'bad');
+  }
+  else if(sp.e === 'skip'){ roller.skip = true; log(`${roller.name} пропускає хід.`, 'bad'); }
   else if(sp.e === 'lanePen' || sp.e === 'laneBon'){
     S.players.filter(q => q.side === roller.side).forEach(q => { q.temp += sp.v; });
   }
@@ -447,13 +564,19 @@ function resolvePvp(attacker, defender){
   const attackerWins = ta > td;
   const winner = attackerWins ? attacker : defender;
   const loser  = attackerWins ? defender : attacker;
-
   const lines = [
     `<b>${esc(attacker.name)}</b>: d20(${ra}) + ${playerBonus(attacker,'pvp')} = <b>${ta}</b>`,
     `<b>${esc(defender.name)}</b>: d20(${rd}) + ${playerBonus(defender,'pvp')} = <b>${td}</b>`
   ];
-
-  if(loser.step > 0){ loser.step--; lines.push(`${loser.name} відкочується на крок назад.`); } if(loser.pack.length){ const it = loser.pack.splice(rnd(loser.pack.length),1)[0]; if(winner.pack.length < CFG.PACK) winner.pack.push(it); lines.push(`${winner.name} забирає «${it.name}» з рюкзака.`); }  S.result = { win: attackerWins, title: attackerWins ? 'НАПАД ВДАВСЯ' : 'НАПАД ВІДБИТО', lines }; S.phase = 'result'; log(`${attacker.name} нападає на ${defender.name}:${attackerWins?'перемога':'поразка'}.`, attackerWins?'bad':'good');
+  if(loser.step > 0){ loser.step--; lines.push(`${loser.name} відкочується на крок назад.`); }
+  if(loser.pack.length){
+    const it = loser.pack.splice(rnd(loser.pack.length),1)[0];
+    if(winner.pack.length < CFG.PACK) winner.pack.push(it);
+    lines.push(`${winner.name} забирає «${it.name}» з рюкзака.`);
+  }
+  S.result = { win: attackerWins, title: attackerWins ? 'НАПАД ВДАВСЯ' : 'НАПАД ВІДБИТО', lines };
+  S.phase = 'result';
+  log(`${attacker.name} нападає на ${defender.name}: ${attackerWins?'перемога':'поразка'}.`, attackerWins?'bad':'good');
   render();
 }
 
@@ -462,13 +585,8 @@ function applyOutcome(p, pd, ok, roll, lines){
   const m = pd.act !== 'throne' ? monsterHere(p) : null;
 
   if(pd.act === 'throne'){
-    if(ok){
-      S.result = { win:true, title:'ТРОН ВЗЯТО', lines };
-      coronate(p);
-    } else {
-      S.result = { win:false, title:'ТРОН УТРИМАНО', lines };
-      lines.push('Трон вистояв.');
-    }
+    if(ok){ S.result = { win:true, title:'ТРОН ВЗЯТО', lines }; coronate(p); }
+    else { S.result = { win:false, title:'ТРОН УТРИМАНО', lines }; lines.push('Трон вистояв.'); }
     return;
   }
 
@@ -477,77 +595,113 @@ function applyOutcome(p, pd, ok, roll, lines){
     if(pd.act === 'fight'){ p.step = Math.min(CFG.STEPS-1, p.step + 1); drawN = 2; }
     else if(pd.act === 'search'){ drawN = 1; title = 'ОБШУК'; }
     else if(pd.act === 'sneak'){ p.step = Math.min(CFG.STEPS-1, p.step + 1); title = 'ПРОКРАВСЯ'; }
-
     S.result = { win:true, title, lines };
     lines.push(`Крок: ${p.step + 1} з ${CFG.STEPS}.`);
     if(drawN && !pd.auto) grantLoot(startStep, drawN);
-    log(`${p.name}:${title.toLowerCase()}.`, 'good');
+    log(`${p.name}: ${title.toLowerCase()}.`, 'good');
   } else {
     let extra = 'Втрачений хід.';
     if(roll === 1 && !p.relics.some(r => r.n === 'Щит долі')){
       const lost = loseItem(p);
-      extra = lost ? `Критичний провал: «${lost.name}» знищено.` : 'Критичний провал!'; if(p.step > 0) p.step--; } else if(m){ if(m.abi === 'push' && p.step > 0){ p.step = Math.max(0, p.step - 2); extra = 'Відкат на 2 кроки назад!'; } else if(m.abi === 'drain'){ p.debuffNext += 1; extra = 'Втрата сили: −1 до наступного кидка.'; } else if(m.abi === 'petrify'){ p.skip = true; extra = 'Окам’яніння: пропуск наступного ходу.'; } else if(m.abi === 'breath'){ if(p.pocket.length) p.pocket.pop(); extra = 'Дракон спопелив карту магії!'; } } S.result = { win:false, title:'ПРОВАЛ', lines }; lines.push(extra); log(`${p.name}: провал проти ${m?m.n:'монстра'}.`, 'bad'); } }  function coronate(winner){ S.players.forEach(x => x.isBoss = false); winner.isBoss = true; winner.step = CFG.STEPS - 1; S.boss = { playerId: winner.id }; S.bossRounds = CFG.BOSS_ROUNDS; S.throneTokens = Math.min(6, S.throneTokens + 1); log(`👑 ${winner.name} стає БОСОМ! DC Трону зростає до ${currentThroneDC()}.`, 'gold'); }  /* ============================================================ ПЕРЕХІД ХОДУ ТА СПЛЯЧИЙ ТРОН ============================================================ */ function nextTurn(){ S.pend = null; S.result = null; S.loot = null; S.castBy = []; if(S.over) return;  const n = S.players.length; S.turn = (S.turn + 1) \% n;  // Нове коло повноцінне (коли хід повертається до 0-го гравця) if(S.turn === 0){ S.players.forEach(p => p.presenceUsed = false);  if(!bossExists()){ S.sleepRounds--; log(`Трон спить... Лишилось кіл: ${S.sleepRounds}`, 'magic');
-      if(S.sleepRounds <= 0){
-        triggerAwakenedThrone();
-      }
+      extra = lost ? `Критичний провал: «${lost.name}» знищено.` : 'Критичний провал!';
+      if(p.step > 0) p.step--;
+    } else if(m){
+      if(m.abi === 'push' && p.step > 0){ p.step = Math.max(0, p.step - 2); extra = 'Відкат на 2 кроки назад!'; }
+      else if(m.abi === 'drain'){ p.debuffNext += 1; extra = 'Втрата сили: −1 до наступного кидка.'; }
+      else if(m.abi === 'petrify'){ p.skip = true; extra = 'Окам’яніння: пропуск наступного ходу.'; }
+      else if(m.abi === 'breath'){ if(p.pocket.length) p.pocket.pop(); extra = 'Дракон спопелив карту магії!'; }
+    }
+    S.result = { win:false, title:'ПРОВАЛ', lines };
+    lines.push(extra);
+    log(`${p.name}: провал проти ${m?m.n:'монстра'}.`, 'bad');
+  }
+}
+
+function coronate(winner){
+  S.players.forEach(x => x.isBoss = false);
+  winner.isBoss = true; winner.step = CFG.STEPS - 1;
+  S.boss = { playerId: winner.id };
+  S.bossRounds = CFG.BOSS_ROUNDS;
+  S.throneTokens = Math.min(6, S.throneTokens + 1);
+  log(`👑 ${winner.name} стає БОСОМ! DC Трону зростає до ${currentThroneDC()}.`, 'gold');
+}
+
+function nextTurn(){
+  S.pend = null; S.result = null; S.loot = null; S.castBy = [];
+  if(S.over) return;
+  const n = S.players.length;
+  S.turn = (S.turn + 1) % n;
+  if(S.turn === 0){
+    S.players.forEach(p => p.presenceUsed = false);
+    if(!bossExists()){
+      S.sleepRounds--;
+      log(`Трон спить... Лишилось кіл: ${S.sleepRounds}`, 'magic');
+      if(S.sleepRounds <= 0){ triggerAwakenedThrone(); }
     }
   }
-
   const now = cur();
   now.moved = false;
-
   if(now.skip){
     now.skip = false;
-    log(`${now.name} пропускає хід.`, 'bad'); nextTurn(); return; }  if(bossExists() && now.id === S.boss.playerId){ S.phase = 'boss'; log('Хід Боса.', 'gold'); } else { S.phase = 'idle'; } render(); }  function triggerAwakenedThrone(){ if(!S.throneDeck.length){ log('Трон прокинувся, використав усі карти і знищив усіх! Трон перемагає!', 'bad'); S.over = true; S.winner = { name:'Сплячий Трон' }; render(); return; } const card = S.throneDeck.pop(); log(`🌑 Сплячий Трон ПРОКИНУВСЯ і розігрує «${card.n}» (${card.t})!`, 'bad'); S.players.forEach(f => f.debuffNext += 1); }  function endBossTurn(){ S.bossRounds--; if(S.bossRounds <= 0){ S.over = true; S.winner = bossPlayer(); log(`👑 ${S.winner.name} втримав Трон 3 кола і перемагає в грі!`, 'gold');
+    log(`${now.name} пропускає хід.`, 'bad');
+    nextTurn(); return;
+  }
+  if(bossExists() && now.id === S.boss.playerId){ S.phase = 'boss'; log('Хід Боса.', 'gold'); }
+  else { S.phase = 'idle'; }
+  render();
+}
+
+function triggerAwakenedThrone(){
+  if(!S.throneDeck.length){
+    log('Трон прокинувся, використав усі карти і знищив усіх! Трон перемагає!', 'bad');
+    S.over = true; S.winner = { name:'Сплячий Трон' }; render(); return;
+  }
+  const card = S.throneDeck.pop();
+  log(`🌑 Сплячий Трон ПРОКИНУВСЯ і розігрує «${card.n}» (${card.t})!`, 'bad');
+  S.players.forEach(f => f.debuffNext += 1);
+}
+
+function endBossTurn(){
+  S.bossRounds--;
+  if(S.bossRounds <= 0){
+    S.over = true; S.winner = bossPlayer();
+    log(`👑 ${S.winner.name} втримав Трон 3 кола і перемагає в грі!`, 'gold');
     render(); return;
   }
   nextTurn();
 }
 
-/* ============================================================
-   РЕНДЕРИНГ ІНТЕРФЕЙСУ
-   ============================================================ */
 function boardSVG(){
   const out = [];
   const A = x => out.push(x);
-
   A('<svg class="board-svg" viewBox="-46 -46 1092 1092" xmlns="http://www.w3.org/2000/svg">');
   A('<defs><radialGradient id="bg" cx="50%" cy="45%" r="75%"><stop offset="0%" stop-color="#241c15"/><stop offset="100%" stop-color="#0d0b09"/></radialGradient>' +
     '<linearGradient id="th" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7a5a22"/><stop offset="100%" stop-color="#33240f"/></linearGradient></defs>');
   A('<rect x="-46" y="-46" width="1092" height="1092" fill="url(#bg)"/>');
-  
   A('<text x="500" y="1034" text-anchor="middle" font-size="17" letter-spacing="7" fill="#6d6253">ПІВДЕНЬ (Печатка)</text>');
   A('<text x="500" y="-20" text-anchor="middle" font-size="17" letter-spacing="7" fill="#6d6253">ПІВНІЧ (Держава)</text>');
   A('<text x="-20" y="500" text-anchor="middle" font-size="17" letter-spacing="4" fill="#6d6253" transform="rotate(-90 -20 500)">ЗАХІД (Корона)</text>');
   A('<text x="1020" y="500" text-anchor="middle" font-size="17" letter-spacing="4" fill="#6d6253" transform="rotate(90 1020 500)">СХІД (Булава)</text>');
-
   [[60,940,'#1a1510','#3d3227'],[260,740,'#211a12','#4a3c2b'],[400,600,'#2a2116','#5a4830']].forEach(([a,b,f,st])=>{
     A(`<rect x="${a}" y="${a}" width="${b-a}" height="${b-a}" rx="18" fill="${f}" stroke="${st}" stroke-width="2"/>`);
   });
-
-  // Монстри та Сходинки
   for(let side=0; side<4; side++){
     for(let i=0; i<CFG.STEPS; i++){
       const {x,y} = STEP_DOTS[side][i];
       const m = S.monsters[side][i];
       A(`<circle cx="${x}" cy="${y}" r="20" fill="#4a1d16" stroke="#a05a2a" stroke-width="2"/>`);
-      A(`<text x="\${x}" y="${y+5}" text-anchor="middle" font-size="12" font-weight="600" fill="#e8c7a8">${CFG.DC[i]}</text>`);
+      A(`<text x="${x}" y="${y+5}" text-anchor="middle" font-size="12" font-weight="600" fill="#e8c7a8">${CFG.DC[i]}</text>`);
       A(`<title>${esc(m.n)}:${esc(m.txt)}</title>`);
     }
   }
-
-  // Трон
   A('<rect x="452" y="452" width="96" height="96" rx="13" fill="url(#th)" stroke="#e0ae4e" stroke-width="3"/>');
-  A(`<text x="500" y="498" text-anchor="middle" font-size="20" font-weight="bold" fill="#ffe9bd">DC \${currentThroneDC()}</text>`);
-  A(`<text x="500" y="522" text-anchor="middle" font-size="11" fill="#9c8f7c">Карт: \${S.throneDeck.length}</text>`);
-
-  // Фішки гравців
+  A(`<text x="500" y="498" text-anchor="middle" font-size="20" font-weight="bold" fill="#ffe9bd">DC ${currentThroneDC()}</text>`);
+  A(`<text x="500" y="522" text-anchor="middle" font-size="11" fill="#9c8f7c">Карт: ${S.throneDeck.length}</text>`);
   S.players.forEach((p, idx)=>{
     let pt = p.isBoss ? {x:500, y:500} : STEP_DOTS[p.side][p.step];
     const offset = (idx - 1.5) * 12;
     A(shapeEl(p.id, pt.x + offset, pt.y + offset, 11, PLAYER_COLORS[p.id%4], '#ffffff', 1.5));
   });
-
   A('</svg>');
   return out.join('');
 }
@@ -600,14 +754,11 @@ function playersHTML(){
       return it ? `<span class="chip">${k==='weapon'?'⚔':'🛡'}: ${esc(it.name)} +${it.p}</span>`
                 : `<span class="chip empty">${k==='weapon'?'⚔':'🛡'}: —</span>`;
     }).join('');
-
     const relics = p.relics.length ? p.relics.map(r => `<span class="chip relic">💎 ${esc(r.n)}</span>`).join('') : '';
     const pockets = p.pocket.length ? p.pocket.map(c => `<span class="chip spell">${esc(c.n)}</span>`).join('') : `<span class="chip empty">магія: —</span>`;
     const pack = p.pack.length ? p.pack.map(c=>`<span class="chip pack">🎒 ${esc(c.name || c.n)}</span>`).join('') : `<span class="chip empty">🎒 —</span>`;
-
     const roller = (S.phase === 'enc') ? cur() : null;
     const canPresence = roller && p.id !== roller.id && sameSquare(p, roller) && !p.presenceUsed;
-
     return `<div class="pcard ${isTurn?'turn':''} ${p.isBoss?'boss':''}">
       <div class="phead"><span class="pname">${badge(p.id)} ${p.isBoss?'👑 ':''}${esc(p.name)}</span>
         <span class="chip">${p.isBoss?'трон':SIDE_NAMES[p.side]+' · '+(p.step+1)}</span></div>
@@ -634,12 +785,10 @@ function centerHTML(){
 
 function idleHTML(p){
   if(p.isBoss) return `<div class="panel"><div class="turn-head">Ти — Бос.</div></div>`;
-
   const mates = S.players.filter(q => q.id !== p.id && sameSquare(p, q));
   const atTop = p.step === CFG.STEPS - 1;
   const m = monsterHere(p);
   const ab = m ? m.txt : '';
-
   let main = '';
   if(atTop){
     main = `<button class="act-btn primary" data-act="choose" data-args='["throne"]'>
@@ -653,18 +802,15 @@ function idleHTML(p){
       <button class="act-btn" data-act="choose" data-args='["sneak"]' ${sneakOff?'disabled':''}>
         <b>🥷 Скрадання</b><small>${sneakOff?'заблоковано':`DC ${CFG.DC[p.step]-4} · +1 крок`}</small></button>`;
   }
-
   const rival = mates.length
     ? `<button class="act-btn danger" data-act="choose" data-args='["pvp",${mates[0].id}]'>
          <b>🗡 Напасти на ${esc(mates[0].name)}</b><small>d20 проти d20</small></button>`
     : '';
-
   const move = p.moved ? '' : `
     <button class="act-btn" data-act="move" data-args='[-1]'>
       <b>↶ ${SIDE_NAMES[(p.side+3)%4]}</b><small>перехід</small></button>
     <button class="act-btn" data-act="move" data-args='[1]'>
       <b>↷ ${SIDE_NAMES[(p.side+1)%4]}</b><small>перехід</small></button>`;
-
   return `
     <div class="panel">
       <div class="turn-head">Хід: <b>${esc(p.name)}</b> · ${SIDE_NAMES[p.side]}, крок ${p.step+1} з ${CFG.STEPS}</div>
@@ -730,7 +876,6 @@ function lootHTML(p){
   const r = S.result;
   const cards = S.loot.map((c,i)=>{
     const isItem = c.kind === 'item';
-    const worn = isItem ? p.slots[c.slot] : null;
     return `<div class="lootcard">
       <div class="lt">${isItem ? (c.slot==='weapon'?'ЗБРОЯ':'БРОНЯ') : (c.kind==='relic'?'РЕЛІКВІЯ':'МАГІЯ')}</div>
       <div class="ln">${esc(c.name || c.n)}</div>
@@ -774,7 +919,6 @@ function render(){
       </div>`;
     return;
   }
-
   document.getElementById('app').innerHTML = `
     ${headerHTML()}
     <div class="board">
@@ -789,9 +933,6 @@ function render(){
     </div>`;
 }
 
-/* ============================================================
-   ПОДІЇ
-   ============================================================ */
 document.addEventListener('click', ev => {
   const el = ev.target.closest('[data-act]');
   if(!el) return;
