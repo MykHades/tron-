@@ -674,242 +674,135 @@ function endBossTurn(){
 function boardSVG(){
   const out = [];
   const A = x => out.push(x);
-  A('<svg class="board-svg" viewBox="-46 -46 1092 1092" xmlns="http://www.w3.org/2000/svg">');
-  A('<defs><radialGradient id="bg" cx="50%" cy="45%" r="75%"><stop offset="0%" stop-color="#241c15"/><stop offset="100%" stop-color="#0d0b09"/></radialGradient>' +
-    '<linearGradient id="th" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7a5a22"/><stop offset="100%" stop-color="#33240f"/></linearGradient></defs>');
-  A('<rect x="-46" y="-46" width="1092" height="1092" fill="url(#bg)"/>');
-  A('<text x="500" y="1034" text-anchor="middle" font-size="17" letter-spacing="7" fill="#6d6253">ПІВДЕНЬ (Печатка)</text>');
-  A('<text x="500" y="-20" text-anchor="middle" font-size="17" letter-spacing="7" fill="#6d6253">ПІВНІЧ (Держава)</text>');
-  A('<text x="-20" y="500" text-anchor="middle" font-size="17" letter-spacing="4" fill="#6d6253" transform="rotate(-90 -20 500)">ЗАХІД (Корона)</text>');
-  A('<text x="1020" y="500" text-anchor="middle" font-size="17" letter-spacing="4" fill="#6d6253" transform="rotate(90 1020 500)">СХІД (Булава)</text>');
-  [[60,940,'#1a1510','#3d3227'],[260,740,'#211a12','#4a3c2b'],[400,600,'#2a2116','#5a4830']].forEach(([a,b,f,st])=>{
-    A(`<rect x="${a}" y="${a}" width="${b-a}" height="${b-a}" rx="18" fill="${f}" stroke="${st}" stroke-width="2"/>`);
+
+  // Ізометрична проекція (3D)
+  const iso = (x, y, z) => {
+    const isoX = (x - y) * 0.866;
+    const isoY = (x + y) * 0.5 - z;
+    return { x: isoX + 550, y: isoY + 450 };
+  };
+
+  A('<svg class="board-svg" viewBox="0 0 1100 1100" xmlns="http://www.w3.org/2000/svg" style="background:#0d0b09;">');
+  A('<defs>' +
+    '<linearGradient id="goldGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f0d9a6"/><stop offset="100%" stop-color="#7a5a22"/></linearGradient>' +
+    '<linearGradient id="stepGrad1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4a3c2b"/><stop offset="100%" stop-color="#211a12"/></linearGradient>' +
+    '<linearGradient id="stepGrad2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5a4830"/><stop offset="100%" stop-color="#2a2116"/></linearGradient>' +
+    '<linearGradient id="throneGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffe9bd"/><stop offset="50%" stop-color="#e0ae4e"/><stop offset="100%" stop-color="#33240f"/></linearGradient>' +
+    '<filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000" flood-opacity="0.8"/></filter>' +
+    '<radialGradient id="vignette" cx="50%" cy="50%" r="70%"><stop offset="60%" stop-color="#0d0b09" stop-opacity="0"/><stop offset="100%" stop-color="#0d0b09" stop-opacity="1"/></radialGradient>' +
+    '</defs>');
+
+  A('<rect width="1100" height="1100" fill="#0d0b09"/>');
+  A('<ellipse cx="550" cy="650" rx="400" ry="200" fill="#000" opacity="0.6" filter="url(#shadow)"/>');
+
+  const levels = [
+    { r: 400, h: 40, z: 0, fill: 'url(#stepGrad1)' },
+    { r: 300, h: 80, z: 40, fill: 'url(#stepGrad2)' },
+    { r: 200, h: 120, z: 80, fill: 'url(#stepGrad1)' },
+    { r: 100, h: 160, z: 120, fill: 'url(#stepGrad2)' }
+  ];
+
+  levels.forEach((lvl, idx) => {
+    const p1 = iso(-lvl.r, -lvl.r, lvl.z);
+    const p2 = iso(lvl.r, -lvl.r, lvl.z);
+    const p3 = iso(lvl.r, lvl.r, lvl.z);
+    const p4 = iso(-lvl.r, lvl.r, lvl.z);
+    const topPath = `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y} L ${p3.x} ${p3.y} L ${p4.x} ${p4.y} Z`;
+    const b1 = iso(-lvl.r, lvl.r, lvl.z - lvl.h);
+    const b2 = iso(lvl.r, lvl.r, lvl.z - lvl.h);
+    
+    A(`<path d="M ${p1.x} ${p1.y} L ${p4.x} ${p4.y} L ${b1.x} ${b1.y} L ${iso(-lvl.r, -lvl.r, lvl.z - lvl.h).x} ${iso(-lvl.r, -lvl.r, lvl.z - lvl.h).y} Z" fill="#151210" stroke="#2b231c" stroke-width="2"/>`);
+    A(`<path d="M ${p4.x} ${p4.y} L ${p3.x} ${p3.y} L ${b2.x} ${b2.y} L ${b1.x} ${b1.y} Z" fill="#1e1811" stroke="#2b231c" stroke-width="2"/>`);
+    A(`<path d="${topPath}" fill="${lvl.fill}" stroke="#3a2f26" stroke-width="2"/>`);
   });
+
+  // Трон
+  const tp1 = iso(-50, -50, 160);
+  const tp2 = iso(50, -50, 160);
+  const tp3 = iso(50, 50, 160);
+  const tp4 = iso(-50, 50, 160);
+  const tp1_b = iso(-50, -50, 120);
+  const tp2_b = iso(50, -50, 120);
+  const tp3_b = iso(50, 50, 120);
+  const tp4_b = iso(-50, 50, 120);
+  
+  A(`<path d="M ${tp1_b.x} ${tp1_b.y} L ${tp4_b.x} ${tp4_b.y} L ${tp3_b.x} ${tp3_b.y} L ${tp2_b.x} ${tp2_b.y} Z" fill="#000" opacity="0.5"/>`);
+  A(`<path d="M ${tp1_b.x} ${tp1_b.y} L ${tp4_b.x} ${tp4_b.y} L ${tp4.x} ${tp4.y} L ${tp1.x} ${tp1.y} Z" fill="#7a5a22"/>`);
+  A(`<path d="M ${tp4_b.x} ${tp4_b.y} L ${tp3_b.x} ${tp3_b.y} L ${tp3.x} ${tp3.y} L ${tp4.x} ${tp4.y} Z" fill="#4a3612"/>`);
+  A(`<path d="M ${tp1.x} ${tp1.y} L ${tp2.x} ${tp2.y} L ${tp3.x} ${tp3.y} L ${tp4.x} ${tp4.y} Z" fill="url(#throneGrad)" stroke="#ffe9bd" stroke-width="2"/>`);
+  
+  const tc = iso(0, 0, 160);
+  A(`<text x="${tc.x}" y="${tc.y - 5}" text-anchor="middle" font-size="14" font-weight="bold" fill="#33240f">DC</text>`);
+  A(`<text x="${tc.x}" y="${tc.y + 12}" text-anchor="middle" font-size="18" font-weight="bold" fill="#33240f">${currentThroneDC()}</text>`);
+
+  // Монстри
   for(let side=0; side<4; side++){
     for(let i=0; i<CFG.STEPS; i++){
-      const {x,y} = STEP_DOTS[side][i];
+      const angle = (side * Math.PI / 2) + Math.PI / 4;
+      const dist = 350 - (i * 50);
+      const x3d = Math.cos(angle) * dist;
+      const y3d = Math.sin(angle) * dist;
+      const z3d = 40 + i * 20;
+      
+      const pt = iso(x3d, y3d, z3d);
       const m = S.monsters[side][i];
-      A(`<circle cx="${x}" cy="${y}" r="20" fill="#4a1d16" stroke="#a05a2a" stroke-width="2"/>`);
-      A(`<text x="${x}" y="${y+5}" text-anchor="middle" font-size="12" font-weight="600" fill="#e8c7a8">${CFG.DC[i]}</text>`);
-      A(`<title>${esc(m.n)}:${esc(m.txt)}</title>`);
+      const dcColor = i < 2 ? '#6aa864' : (i < 4 ? '#e0ae4e' : '#c14734');
+      
+      A(`<ellipse cx="${pt.x}" cy="${pt.y + 5}" rx="28" ry="14" fill="#000" opacity="0.5"/>`);
+      A(`<circle cx="${pt.x}" cy="${pt.y}" r="26" fill="#2a1712" stroke="${dcColor}" stroke-width="3"/>`);
+      
+      let icon = '👹';
+      if(m.abi === 'fast' || m.abi === 'duel') icon = '⚡';
+      else if(m.abi === 'web' || m.abi === 'labyrinth') icon = '🕸️';
+      else if(m.abi === 'push') icon = '💥';
+      else if(m.abi === 'hex' || m.abi === 'curse') icon = '🔮';
+      else if(m.abi === 'petrify') icon = '👁️';
+      else if(m.abi === 'phase') icon = '👻';
+      else if(m.abi === 'breath') icon = '🔥';
+      
+      A(`<text x="${pt.x}" y="${pt.y + 8}" text-anchor="middle" font-size="24">${icon}</text>`);
+      A(`<circle cx="${pt.x + 18}" cy="${pt.y - 15}" r="10" fill="#120f0c" stroke="${dcColor}" stroke-width="1.5"/>`);
+      A(`<text x="${pt.x + 18}" y="${pt.y - 11}" text-anchor="middle" font-size="10" font-weight="bold" fill="#e8ddc9">${CFG.DC[i]}</text>`);
+      A(`<title>${esc(m.n)}: ${esc(m.txt)}</title>`);
     }
   }
-  A('<rect x="452" y="452" width="96" height="96" rx="13" fill="url(#th)" stroke="#e0ae4e" stroke-width="3"/>');
-  A(`<text x="500" y="498" text-anchor="middle" font-size="20" font-weight="bold" fill="#ffe9bd">DC ${currentThroneDC()}</text>`);
-  A(`<text x="500" y="522" text-anchor="middle" font-size="11" fill="#9c8f7c">Карт: ${S.throneDeck.length}</text>`);
+
+  // Гравці (Гуманоїдні тіні)
   S.players.forEach((p, idx)=>{
-    let pt = p.isBoss ? {x:500, y:500} : STEP_DOTS[p.side][p.step];
-    const offset = (idx - 1.5) * 12;
-    A(shapeEl(p.id, pt.x + offset, pt.y + offset, 11, PLAYER_COLORS[p.id%4], '#ffffff', 1.5));
+    let pt;
+    if(p.isBoss) { pt = iso(0, 0, 175); }
+    else {
+      const angle = (p.side * Math.PI / 2) + Math.PI / 4;
+      const dist = 350 - (p.step * 50);
+      pt = iso(Math.cos(angle) * dist, Math.sin(angle) * dist, 40 + p.step * 20 + 5);
+    }
+    
+    const offX = (idx % 2 === 0 ? -10 : 10);
+    const offY = (idx > 1 ? 6 : -6);
+    const cx = pt.x + offX;
+    const cy = pt.y + offY;
+    const color = PLAYER_COLORS[p.id%4];
+
+    A(`<ellipse cx="${cx}" cy="${cy + 2}" rx="10" ry="4" fill="#000" opacity="0.8"/>`);
+    const path = `M ${cx} ${cy - 22} C ${cx - 8} ${cy - 22}, ${cx - 12} ${cy - 12}, ${cx - 10} ${cy + 2} L ${cx + 10} ${cy + 2} C ${cx + 12} ${cy - 12}, ${cx + 8} ${cy - 22}, ${cx} ${cy - 22} Z`;
+    
+    A(`<path d="${path}" fill="${color}" stroke="#111" stroke-width="1.5" filter="url(#shadow)"/>`);
+    
+    const eyeColor = p.isBoss ? '#ffe9bd' : '#fff';
+    A(`<circle cx="${cx - 3}" cy="${cy - 12}" r="1.5" fill="${eyeColor}"/>`);
+    A(`<circle cx="${cx + 3}" cy="${cy - 12}" r="1.5" fill="${eyeColor}"/>`);
+    A(`<path d="M ${cx} ${cy - 20} C ${cx - 5} ${cy - 10}, ${cx - 5} ${cy + 2}, ${cx - 5} ${cy + 2} L ${cx + 5} ${cy + 2} C ${cx + 5} ${cy + 2}, ${cx + 5} ${cy - 10}, ${cx} ${cy - 20} Z" fill="#000" opacity="0.3"/>`);
+
+    if(p.isBoss){
+      const crownY = cy - 26;
+      A(`<path d="M ${cx - 8} ${crownY} L ${cx - 8} ${crownY - 6} L ${cx - 4} ${crownY - 2} L ${cx} ${crownY - 8} L ${cx + 4} ${crownY - 2} L ${cx + 8} ${crownY - 6} L ${cx + 8} ${crownY} Z" fill="#e0ae4e" stroke="#ffe9bd" stroke-width="1"/>`);
+    }
   });
+
+  A('<rect width="1100" height="1100" fill="url(#vignette)" pointer-events="none"/>');
   A('</svg>');
   return out.join('');
-}
-
-function renderSplash(){
-  document.getElementById('app').innerHTML = `
-    <div class="splash">
-      <h1>ТРОН</h1>
-      <div class="tag">Настільна гра · Версія 1.0</div>
-      <p>Трон порожній. Четверо сміливців підіймаються сходами піраміди — кожен своєю стороною. Здолайте монстрів, використовуйте магію, реліквії та скарби. Хто перший сяде на трон — стане Босом. Але втримати трон ще складніше, ніж здобути!</p>
-      <div class="pick">
-        <button class="primary" data-act="start" data-args='[2]'>2 гравці</button>
-        <button class="primary" data-act="start" data-args='[3]'>3 гравці</button>
-        <button class="primary" data-act="start" data-args='[4]'>4 гравці</button>
-      </div>
-    </div>`;
-}
-
-function renderSetup(n){
-  document.getElementById('app').innerHTML = `
-    <div class="splash">
-      <h1>ТРОН</h1>
-      <div class="tag">Хто йде нагору?</div>
-      <div class="setup">
-        ${Array.from({length:n}, (_,i)=>`
-          <div class="setuprow">${badge(i)}
-            <input class="namein" data-i="${i}" maxlength="14" value="Гравець ${i+1}">
-          </div>`).join('')}
-      </div>
-      <div class="pick">
-        <button class="primary" data-act="begin" data-args='[${n}]'>Почати</button>
-        <button data-act="playAgain">Назад</button>
-      </div>
-    </div>`;
-}
-
-function headerHTML(){
-  const p = cur();
-  let st = `Хід: <b>${esc(p.name)}</b> · бонус <b>+${playerBonus(p)}</b>`;
-  if(bossExists()) st += `<br><span class="gold">👑 ${esc(bossPlayer().name)} · DC ${currentThroneDC()} · Кіл: ${S.bossRounds}</span>`;
-  else st += `<br><span class="gold">Трон: DC ${currentThroneDC()} · Спить: ${S.sleepRounds}</span>`;
-  return `<header><h1>ТРОН</h1><div class="spacer"></div><div class="status">${st}</div></header>`;
-}
-
-function playersHTML(){
-  return S.players.map(p=>{
-    const isTurn = p.id === S.turn;
-    const slots = ['weapon','armor'].map(k=>{
-      const it = p.slots[k];
-      return it ? `<span class="chip">${k==='weapon'?'⚔':'🛡'}: ${esc(it.name)} +${it.p}</span>`
-                : `<span class="chip empty">${k==='weapon'?'⚔':'🛡'}: —</span>`;
-    }).join('');
-    const relics = p.relics.length ? p.relics.map(r => `<span class="chip relic">💎 ${esc(r.n)}</span>`).join('') : '';
-    const pockets = p.pocket.length ? p.pocket.map(c => `<span class="chip spell">${esc(c.n)}</span>`).join('') : `<span class="chip empty">магія: —</span>`;
-    const pack = p.pack.length ? p.pack.map(c=>`<span class="chip pack">🎒 ${esc(c.name || c.n)}</span>`).join('') : `<span class="chip empty">🎒 —</span>`;
-    const roller = (S.phase === 'enc') ? cur() : null;
-    const canPresence = roller && p.id !== roller.id && sameSquare(p, roller) && !p.presenceUsed;
-    return `<div class="pcard ${isTurn?'turn':''} ${p.isBoss?'boss':''}">
-      <div class="phead"><span class="pname">${badge(p.id)} ${p.isBoss?'👑 ':''}${esc(p.name)}</span>
-        <span class="chip">${p.isBoss?'трон':SIDE_NAMES[p.side]+' · '+(p.step+1)}</span></div>
-      <div class="pstat">бонус <b>+${playerBonus(p)}</b></div>
-      <div class="chips">${slots}</div>
-      <div class="chips" style="margin-top:3px">${relics}</div>
-      <div class="chips" style="margin-top:3px">${pockets}</div>
-      <div class="chips" style="margin-top:3px">${pack}</div>
-      ${canPresence ? `<div class="chips" style="margin-top:5px">
-        <button class="tiny" data-act="presence" data-args='[${p.id},1]'>+2 допомогти</button>
-        <button class="tiny danger" data-act="presence" data-args='[${p.id},-1]'>−2 завадити</button></div>` : ''}
-    </div>`;
-  }).join('');
-}
-
-function centerHTML(){
-  const p = cur();
-  if(S.phase === 'enc')    return encHTML(p);
-  if(S.phase === 'result') return resultHTML();
-  if(S.phase === 'loot')   return lootHTML(p);
-  if(S.phase === 'boss')   return bossHTML(p);
-  return idleHTML(p);
-}
-
-function idleHTML(p){
-  if(p.isBoss) return `<div class="panel"><div class="turn-head">Ти — Бос.</div></div>`;
-  const mates = S.players.filter(q => q.id !== p.id && sameSquare(p, q));
-  const atTop = p.step === CFG.STEPS - 1;
-  const m = monsterHere(p);
-  const ab = m ? m.txt : '';
-  let main = '';
-  if(atTop){
-    main = `<button class="act-btn primary" data-act="choose" data-args='["throne"]'>
-      <b>👑 Штурм трону</b><small>DC ${currentThroneDC()} · стати Босом</small></button>`;
-  } else {
-    const sneakOff = !!(m && (m.abi === 'fast' || m.abi === 'slow'));
-    main = `<button class="act-btn primary" data-act="choose" data-args='["fight"]'>
-        <b>⚔ Бій</b><small>DC ${CFG.DC[p.step]} · +1 крок, 2 скарби</small></button>
-      <button class="act-btn" data-act="choose" data-args='["search"]'>
-        <b>🔍 Обшук</b><small>DC ${CFG.DC[p.step]-2} · 1 скарб</small></button>
-      <button class="act-btn" data-act="choose" data-args='["sneak"]' ${sneakOff?'disabled':''}>
-        <b>🥷 Скрадання</b><small>${sneakOff?'заблоковано':`DC ${CFG.DC[p.step]-4} · +1 крок`}</small></button>`;
-  }
-  const rival = mates.length
-    ? `<button class="act-btn danger" data-act="choose" data-args='["pvp",${mates[0].id}]'>
-         <b>🗡 Напасти на ${esc(mates[0].name)}</b><small>d20 проти d20</small></button>`
-    : '';
-  const move = p.moved ? '' : `
-    <button class="act-btn" data-act="move" data-args='[-1]'>
-      <b>↶ ${SIDE_NAMES[(p.side+3)%4]}</b><small>перехід</small></button>
-    <button class="act-btn" data-act="move" data-args='[1]'>
-      <b>↷ ${SIDE_NAMES[(p.side+1)%4]}</b><small>перехід</small></button>`;
-  return `
-    <div class="panel">
-      <div class="turn-head">Хід: <b>${esc(p.name)}</b> · ${SIDE_NAMES[p.side]}, крок ${p.step+1} з ${CFG.STEPS}</div>
-      <h2 class="big">${atTop ? 'Останній крок' : 'Смуга ' + SIDE_NAMES[p.side].toLowerCase()}</h2>
-      <div class="sub">Бонус <b style="color:var(--ink)">+${playerBonus(p)}</b>. ${atTop ? 'Вище — тільки трон.' : 'Перед тобою монстр.'}</div>
-      ${m ? `<div class="monster" style="margin-bottom:12px">
-        <div class="mtype">СХОДИНКА ${p.step+1} З ${CFG.STEPS}</div>
-        <h2>${esc(m.n)}</h2>
-        <div class="sub" style="margin:6px 0 0">DC <b style="color:var(--ink)">${CFG.DC[p.step]}</b><br><span style="color:var(--violet)">${esc(ab)}</span></div>
-      </div>` : ''}
-      <div class="actions">${main}${rival}${move}</div>
-    </div>`;
-}
-
-function spellBar(roller){
-  const out = [];
-  S.players.forEach(p => {
-    if(S.castBy.includes(p.id)) return;
-    p.pocket.forEach((c,i) => {
-      if(c.s === 'self' && p.id !== roller.id) return;
-      if(c.s === 'enemy' && p.id === roller.id) return;
-      out.push(`<button class="tiny magic" title="${esc(c.t)}" data-act="cast" data-args='[${p.id},${i}]'>
-        🔮 ${esc(c.n)} <span style="opacity:.55">${esc(p.name.replace('Гравець ','Г'))}</span></button>`);
-    });
-  });
-  return out.length ? `<div class="spellbar"><div class="sbtitle">МАГІЯ — одна карта за кидок</div>${out.join('')}</div>` : '';
-}
-
-function encHTML(p){
-  const pd = S.pend;
-  const need = pd.dc - playerBonus(p, pd.act) - pd.help + pd.harm;
-  const label = { fight:'БІЙ', search:'ОБШУК', sneak:'СКРАДАННЯ', throne:'ШТУРМ ТРОНУ' }[pd.act] || 'БІЙ';
-  const m = pd.act !== 'throne' ? monsterHere(p) : null;
-  return `
-    <div class="panel">
-      <div class="monster ${pd.act==='throne'?'boss':''}" style="margin-bottom:0">
-        <div class="mtype">${pd.act==='throne'?'ТРОН':'СХОДИНКА '+(p.step+1)+' · '+label}</div>
-        <h2>${m?esc(m.n):'Трон'}</h2>
-        <div class="sub" style="margin-top:10px; font-size:16px; color:var(--ink)">
-          Бонус: <b>+${playerBonus(p, pd.act)}</b> 
-          ${pd.help?` <span style="color:var(--green)">+ ${pd.help}</span>`:''}
-          ${pd.harm?` <span style="color:var(--blood)">− ${pd.harm}</span>`:''}
-          &nbsp;|&nbsp; DC: <b>${pd.dc}</b>
-        </div>
-      </div>
-      ${spellBar(p)}
-      <div class="actions"><button class="primary" data-act="roll">🎲 Кинути d20</button></div>
-    </div>`;
-}
-
-function resultHTML(){
-  const r = S.result;
-  return `<div class="panel">
-    <div class="resultbox ${r.win?'win':'lose'}">
-      <h2>${esc(r.title)}</h2>
-      ${r.lines.map(l=>`<p>${l}</p>`).join('')}
-    </div>
-    <div class="actions"><button class="primary" data-act="cont">Далі →</button></div>
-  </div>`;
-}
-
-function lootHTML(p){
-  const r = S.result;
-  const cards = S.loot.map((c,i)=>{
-    const isItem = c.kind === 'item';
-    return `<div class="lootcard">
-      <div class="lt">${isItem ? (c.slot==='weapon'?'ЗБРОЯ':'БРОНЯ') : (c.kind==='relic'?'РЕЛІКВІЯ':'МАГІЯ')}</div>
-      <div class="ln">${esc(c.name || c.n)}</div>
-      <div class="lp">${isItem ? '+'+c.p : esc(c.t)}</div>
-      <div style="margin-top:9px; display:flex; gap:5px; flex-wrap:wrap">
-        ${isItem ? `<button class="tiny primary" data-act="takeLoot" data-args='[${i},"equip"]'>Взяти</button>` : ''}
-        <button class="tiny" data-act="takeLoot" data-args='[${i},"pack"]'>У рюкзак</button>
-      </div>
-    </div>`;
-  }).join('');
-  return `<div class="panel">
-    <div class="resultbox ${r.win?'win':'lose'}" style="margin-bottom:12px">
-      <h2>${esc(r.title)}</h2>${r.lines.map(l=>`<p>${l}</p>`).join('')}
-    </div>
-    <h3 style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)">Здобич</h3>
-    <div class="lootgrid">${cards || '<span class="sub">порожньо</span>'}</div>
-    <div class="actions"><button data-act="skipLoot">Відмовитись</button></div>
-  </div>`;
-}
-
-function bossHTML(p){
-  return `<div class="panel">
-    <div class="turn-head">Ти — <b>БОС</b>. Кіл до перемоги: <b>${S.bossRounds}</b>.</div>
-    <div class="monster boss" style="margin-bottom:0">
-      <div class="mtype">ТРОН</div>
-      <h2>Володар Трону</h2>
-      <div class="sub" style="margin:8px 0 0;color:#cdb98d">Карт трону залишилось: ${S.throneDeck.length}</div>
-    </div>
-    <div class="actions"><button class="primary" data-act="playBossCard">Відкрити карту трону і завершити хід</button></div>
-  </div>`;
-}
-
-function render(){
-  if(!S){ renderSplash(); return; }
+} renderSplash(); return; }
   if(S.over){
     document.getElementById('app').innerHTML = `
       <div class="splash">
