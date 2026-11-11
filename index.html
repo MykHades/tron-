@@ -802,7 +802,10 @@ function boardSVG(){
   A('<rect width="1100" height="1100" fill="url(#vignette)" pointer-events="none"/>');
   A('</svg>');
   return out.join('');
-} renderSplash(); return; }
+  }
+
+function render(){
+  if(!S){ renderSplash(); return; }
   if(S.over){
     document.getElementById('app').innerHTML = `
       <div class="splash">
